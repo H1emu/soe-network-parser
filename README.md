@@ -1,0 +1,1 @@
+soeprotocol parsing tool, is not intended to be suitable for public use however if you have a reason to use it and need help ask @QuentinGruber

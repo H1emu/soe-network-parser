@@ -1,0 +1,15 @@
+[package]
+edition = "2021"
+name = "soe-network-parser"
+version = "0.1.0"
+
+[dependencies]
+h1emu-core = { version = "0.8.9", default-features = false, features = ["soeprotocol"] }
+serde = "1.0.136"
+serde_derive = "1.0.136"
+serde_json ="1.0.79"
+hex = "0.4.3"
+
+[profile.release]
+lto = true
+opt-level = 3
