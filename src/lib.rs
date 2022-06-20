@@ -66,20 +66,22 @@ pub mod pcap_extraction {
 pub mod soe_packet_extraction {
     use super::pcap_extraction::*;
     use h1emu_core::soeprotocol::Soeprotocol;
+    use h1emu_core::soeprotocol_packets_structs::SubBasePackets;
     use serde_derive::Deserialize;
     use serde_derive::Serialize;
     use serde_json::*;
     use std::fs;
 
+    #[derive(Serialize, Deserialize)]
+        struct ExtractedPacketSmall {
+            name: String,
+        }
+        
     pub fn extract_soe_packets(
         extracted_packets: Vec<ExtractedPacket>,
         use_crc: bool,
         crc_seed: u32,
-    ) -> () {
-        #[derive(Serialize, Deserialize)]
-        struct ExtractedPacketSmall {
-            name: String,
-        }
+    ) -> Vec<Value> {
 
         let mut protocol = Soeprotocol::initialize(use_crc, crc_seed);
         let mut index: u32 = 0;
@@ -107,6 +109,36 @@ pub mod soe_packet_extraction {
             serde_json::to_string_pretty(&parsed_packets).unwrap(),
         )
         .expect("Unable to write to file");
+        return parsed_packets ; 
+    }
+
+    fn contain_multiple_acks(packet: SubBasePackets) -> bool {
+        // count the number of packets named "Ack" inside the MultiPacket
+        let mut ack_count: u32 = 0;
+        for packet_part in packet.sub_packets {
+            if packet_part.name == "Ack" {
+                ack_count += 1;
+            }
+        }
+        return ack_count > 1
+    }
+    pub fn analyze_soe_packets(parsed_packets: Vec<Value>) {
+        let mut multiple_acks_per_buffer: u32 = 0;
+        for parsed_packet in parsed_packets {
+            let extracted_packet_small: ExtractedPacketSmall =
+                serde_json::from_str(&parsed_packet.as_str().unwrap()).unwrap();
+                match extracted_packet_small.name.as_str() {
+                    "MultiPacket" => {
+                        let packet:SubBasePackets = serde_json::from_str(&parsed_packet.as_str().unwrap()).unwrap();
+                        if contain_multiple_acks(packet) {
+                            multiple_acks_per_buffer += 1;
+                        }
+                    }
+                    _=> {
+                    }
+                }
+        }
+        println!("{} multipackets with multiple ACKs", multiple_acks_per_buffer);
     }
 }
 
