@@ -153,8 +153,6 @@ pub mod soe_packet_extraction {
                             total_outoforder += 1;
                             if packet_part.sequence.unwrap() < last_ack {
                                 useless_outoforder += 1;
-                            } else {
-                                last_ack = packet_part.sequence.unwrap();
                             }
                         }
                     }
