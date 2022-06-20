@@ -86,7 +86,7 @@ pub mod soe_packet_extraction {
         let mut protocol = Soeprotocol::initialize(use_crc, crc_seed);
         let mut index: u32 = 0;
         let mut parsed_packets: Vec<Value> = Vec::new();
-
+        let mut parsed_server_packets: Vec<Value> = Vec::new();
         for extracted_packet in extracted_packets {
             let parsed_data = protocol.parse(extracted_packet.data);
             parsed_packets.push(json!(parsed_data));
@@ -94,6 +94,9 @@ pub mod soe_packet_extraction {
             let extracted_packet_small: ExtractedPacketSmall =
                 serde_json::from_str(&parsed_data).unwrap();
             index += 1;
+            if extracted_packet.sender == "server" {
+                parsed_server_packets.push(json!(parsed_data));
+            }
             let mut file_name: String =
                 "C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/".to_owned();
             file_name.push_str(&index.to_string());
@@ -109,7 +112,7 @@ pub mod soe_packet_extraction {
             serde_json::to_string_pretty(&parsed_packets).unwrap(),
         )
         .expect("Unable to write to file");
-        return parsed_packets;
+        return parsed_server_packets;
     }
 
     fn contain_multiple_acks(packet: &SubBasePackets) -> bool {
@@ -174,7 +177,9 @@ pub mod soe_packet_extraction {
                         useless_outoforder += 1;
                     }
                 }
-                _ => {}
+                _ => {
+
+                }
             }
         }
         if total_multi_packets > 0 {
