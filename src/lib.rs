@@ -112,10 +112,10 @@ pub mod soe_packet_extraction {
         return parsed_packets;
     }
 
-    fn contain_multiple_acks(packet: SubBasePackets) -> bool {
+    fn contain_multiple_acks(packet: &SubBasePackets) -> bool {
         // count the number of packets named "Ack" inside the MultiPacket
         let mut ack_count: u32 = 0;
-        for packet_part in packet.sub_packets {
+        for packet_part in &packet.sub_packets {
             if packet_part.name == "Ack" {
                 ack_count += 1;
             }
@@ -138,8 +138,25 @@ pub mod soe_packet_extraction {
                     total_multi_packets += 1;
                     let packet: SubBasePackets =
                         serde_json::from_str(&parsed_packet.as_str().unwrap()).unwrap();
-                    if contain_multiple_acks(packet) {
+                    if contain_multiple_acks(&packet) {
                         multiple_acks_per_buffer += 1;
+                    }
+                    for packet_part in packet.sub_packets {
+                        if packet_part.name == "Ack" {
+                            total_acks += 1;
+                            if packet_part.sequence.unwrap() < last_ack {
+                                useless_acks += 1;
+                            } else {
+                                last_ack = packet_part.sequence.unwrap();
+                            }
+                        } else if packet_part.name == "OutOfOrder" {
+                            total_outoforder += 1;
+                            if packet_part.sequence.unwrap() < last_ack {
+                                useless_outoforder += 1;
+                            } else {
+                                last_ack = packet_part.sequence.unwrap();
+                            }
+                        }
                     }
                 }
                 "Ack" => {
