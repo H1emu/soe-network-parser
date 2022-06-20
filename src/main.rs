@@ -1,109 +1,63 @@
+use clap::Parser;
+use path_absolutize::*;
+use std::env;
 use std::fs;
-mod pcap_struct;
-use h1emu_core::soeprotocol::Soeprotocol;
-use pcap_struct::Packet;
-use serde_derive::Deserialize;
-use serde_derive::Serialize;
-use serde_json::*;
+use std::path::Path;
 
-struct ExtractedPacket {
-    sender: String,
-    data: Vec<u8>,
+mod lib;
+
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    #[clap(short, long)]
+    file_path: String,
+
+    #[clap(short, long, default_value = "1117")]
+    server_port: String,
+
+    #[clap(short, long)]
+    use_crc: bool,
+
+    #[clap(short, long, default_value_t = 0)]
+    crc_seed: u32,
+
+    #[clap(short, long)]
+    extract_raw_data: bool,
+
+    #[clap(short, long, default_value_t = 0)]
+    max_packets: usize,
 }
 
-fn convert_payload_to_buff(payload: String) -> Vec<u8> {
-    let hex_stream = payload.replace(":", "");
-    let decoded = hex::decode(hex_stream).expect("Decoding failed");
-    return decoded;
+fn get_absolute_file_path(file_path: &str) -> String {
+    let p = Path::new(file_path);
+    let cwd = env::current_dir().unwrap();
+
+    return p
+        .absolutize_from(&cwd)
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
 }
 
-fn create_if_doesnt_exist(dir: &str) {
-    if !std::fs::metadata(dir).is_err() {
-        std::fs::remove_dir_all(dir).unwrap();
-    }
-    std::fs::create_dir(dir).unwrap();
+pub struct ExtractedPacket {
+    pub sender: String,
+    pub data: Vec<u8>,
 }
 
 fn main() {
-    let contents = fs::read_to_string("C:/Users/Quentin/Desktop/soe-network-parser/examples/z1brlag.json")
-        .expect("Something went wrong reading the file");
+    let args = Args::parse();
 
-    const MAX_PACKETS: usize = 0;
-    const SERVER_PORT: &str = "20153";
-    const USE_CRC: bool = true;
-    // use serde to serialize the json
-    let packets: Vec<Packet> = serde_json::from_str(&contents).unwrap();
-    let mut extracted_packets: Vec<ExtractedPacket> = Vec::new();
-    for packet in packets {
-        if packet.source.layers.udp.is_some() {
-            let udp = packet.source.layers.udp.unwrap();
-            if udp.udp_srcport == SERVER_PORT || udp.udp_dstport == SERVER_PORT {
-                if packet.source.layers.data.is_some() {
-                    let payload = packet.source.layers.data.unwrap().data_data;
-                    let buff = convert_payload_to_buff(payload);
-                    let sender;
-                    if udp.udp_srcport == SERVER_PORT {
-                        sender = "server"
-                    } else {
-                        sender = "client"
-                    }
-                    extracted_packets.push(ExtractedPacket {
-                        sender: sender.to_owned(),
-                        data: buff,
-                    });
-                }
-            }
-        }
-        if MAX_PACKETS > 0 && extracted_packets.len() >= MAX_PACKETS {
-            break;
-        }
-    }
+    let max_packets: usize = args.max_packets;
+    let server_port: &str = args.server_port.as_str();
+    let use_crc: bool = args.use_crc;
+    let extract_raw_data: bool = args.extract_raw_data;
+    let file_path = get_absolute_file_path(&args.file_path);
+    let crc_seed = args.crc_seed;
 
-    // log number of extracted packets
-    println!("{} packets extracted", extracted_packets.len());
-    // for each extracted packet, write it to a file
-    create_if_doesnt_exist("C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/");
-    /*
-        let mut index: u32 = 0;
-        for extracted_packet in &extracted_packets {
-            index += 1;
-            let mut file_name: String =
-                "C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/".to_owned();
-            file_name.push_str(&index.to_string());
-            file_name.push_str("-");
-            file_name.push_str(&extracted_packet.sender);
-            file_name.push_str(".bin");
-            fs::write(file_name, &extracted_packet.data).expect("Unable to write to file");
-        }
-    */
-    #[derive(Serialize, Deserialize)]
-    struct ExtractedPacketSmall {
-        name: String,
-    }
+    let contents = fs::read_to_string(file_path).expect("Something went wrong reading the file");
 
-    let mut protocol = Soeprotocol::initialize(USE_CRC, 1646082897);
-    let mut index: u32 = 0;
-    let mut parsed_packets: Vec<Value> = Vec::new();
-    for extracted_packet in extracted_packets {
-        let parsed_data = protocol.parse(extracted_packet.data);
-        parsed_packets.push(json!(parsed_data));
-        // use serde to serialize the json with ExtractedPacketSmall
-        let extracted_packet_small: ExtractedPacketSmall =
-            serde_json::from_str(&parsed_data).unwrap();
-        index += 1;
-        let mut file_name: String =
-            "C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/".to_owned();
-        file_name.push_str(&index.to_string());
-        file_name.push_str("-");
-        file_name.push_str(&extracted_packet.sender);
-        file_name.push_str("-");
-        file_name.push_str(extracted_packet_small.name.as_str());
-        file_name.push_str(".json");
-        fs::write(file_name, parsed_data).expect("Unable to write to file");
-    }
-    fs::write(
-        "C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/0-full.json".to_owned(),
-        serde_json::to_string_pretty(&parsed_packets).unwrap(),
-    )
-    .expect("Unable to write to file");
+    let extracted_packets = lib::pcap_extraction::extract_raw_data_from_pcap(contents, server_port, max_packets, extract_raw_data);
+    // extract soe packets from extracted packets with extract_soe_packets
+    let soe_packets = lib::soe_packet_extraction::extract_soe_packets(extracted_packets, use_crc, crc_seed);
 }
