@@ -57,9 +57,15 @@ fn main() {
 
     let contents = fs::read_to_string(file_path).expect("Something went wrong reading the file");
 
-    let extracted_packets = lib::pcap_extraction::extract_raw_data_from_pcap(contents, server_port, max_packets, extract_raw_data);
+    let extracted_packets = lib::pcap_extraction::extract_raw_data_from_pcap(
+        contents,
+        server_port,
+        max_packets,
+        extract_raw_data,
+    );
     // extract soe packets from extracted packets with extract_soe_packets
-    let soe_packets = lib::soe_packet_extraction::extract_soe_packets(extracted_packets, use_crc, crc_seed);
-    
+    let soe_packets =
+        lib::soe_packet_extraction::extract_soe_packets(extracted_packets, use_crc, crc_seed);
+
     lib::soe_packet_extraction::analyze_soe_packets(soe_packets);
 }
