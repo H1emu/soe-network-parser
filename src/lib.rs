@@ -66,12 +66,12 @@ pub mod pcap_extraction {
 pub mod soe_packet_extraction {
     use super::pcap_extraction::*;
     use h1emu_core::soeprotocol::Soeprotocol;
-    use h1emu_core::soeprotocol_packets_structs::AckPacket;
-    use h1emu_core::soeprotocol_packets_structs::SubBasePackets;
+    use h1emu_core::soeprotocol_packets_structs::{AckPacket,DataPacket,SubBasePackets};
     use serde_derive::Deserialize;
     use serde_derive::Serialize;
     use serde_json::*;
     use std::fs;
+    use std::collections::HashMap;
 
     #[derive(Serialize, Deserialize)]
     struct ExtractedPacketSmall {
@@ -82,11 +82,14 @@ pub mod soe_packet_extraction {
         extracted_packets: Vec<ExtractedPacket>,
         use_crc: bool,
         crc_seed: u32,
-    ) -> Vec<Value> {
+    ) -> HashMap<String,Vec<Value>> {
         let mut protocol = Soeprotocol::initialize(use_crc, crc_seed);
         let mut index: u32 = 0;
         let mut parsed_packets: Vec<Value> = Vec::new();
         let mut parsed_server_packets: Vec<Value> = Vec::new();
+        let mut parsed_client_packets: Vec<Value> = Vec::new();
+        let mut parsed_packets_map: HashMap<String,Vec<Value>> = HashMap::new();
+        
         for extracted_packet in extracted_packets {
             let parsed_data = protocol.parse(extracted_packet.data);
             parsed_packets.push(json!(parsed_data));
@@ -96,6 +99,8 @@ pub mod soe_packet_extraction {
             index += 1;
             if extracted_packet.sender == "server" {
                 parsed_server_packets.push(json!(parsed_data));
+            } else{
+                parsed_client_packets.push(json!(parsed_data));
             }
             let mut file_name: String =
                 "C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/".to_owned();
@@ -112,7 +117,9 @@ pub mod soe_packet_extraction {
             serde_json::to_string_pretty(&parsed_packets).unwrap(),
         )
         .expect("Unable to write to file");
-        return parsed_server_packets;
+        parsed_packets_map.insert("client".to_owned(),  parsed_client_packets);
+        parsed_packets_map.insert("server".to_owned(), parsed_server_packets);
+        return parsed_packets_map;
     }
 
     fn contain_multiple_acks(packet: &SubBasePackets) -> bool {
@@ -125,81 +132,169 @@ pub mod soe_packet_extraction {
         }
         return ack_count > 1;
     }
-    pub fn analyze_soe_packets(parsed_packets: Vec<Value>) {
-        let mut multiple_acks_per_buffer: u32 = 0;
-        let mut total_multi_packets: u32 = 0;
-        let mut total_acks: u32 = 0;
-        let mut useless_acks: u32 = 0;
-        let mut useless_outoforder: u32 = 0;
-        let mut total_outoforder: u32 = 0;
-        let mut last_ack: u16 = 0;
+
+    struct Stats {
+        multiple_acks_per_buffer: u32,
+        total_multi_packets: u32,
+        total_acks: u32,
+        useless_acks: u32,
+        useless_outoforder: u32,
+        total_outoforder: u32,
+        last_ack: u16,
+        last_sequence: HashMap<u16,bool>,
+        resended_data: u32,
+        total_data_packets: u32,
+        
+        
+    }
+    fn analyse_packets(parsed_packets: &Vec<Value>,stats : &mut Stats) -> () {
+
         for parsed_packet in parsed_packets {
             let extracted_packet_small: ExtractedPacketSmall =
                 serde_json::from_str(&parsed_packet.as_str().unwrap()).unwrap();
             match extracted_packet_small.name.as_str() {
                 "MultiPacket" => {
-                    total_multi_packets += 1;
+                    stats.total_multi_packets += 1;
                     let packet: SubBasePackets =
                         serde_json::from_str(&parsed_packet.as_str().unwrap()).unwrap();
                     if contain_multiple_acks(&packet) {
-                        multiple_acks_per_buffer += 1;
+                        stats.multiple_acks_per_buffer += 1;
                     }
                     for packet_part in packet.sub_packets {
                         if packet_part.name == "Ack" {
-                            total_acks += 1;
-                            if packet_part.sequence.unwrap() < last_ack {
-                                useless_acks += 1;
+                            stats.total_acks += 1;
+                            if packet_part.sequence.unwrap() < stats.last_ack {
+                                stats.useless_acks += 1;
                             } else {
-                                last_ack = packet_part.sequence.unwrap();
+                                stats.last_ack = packet_part.sequence.unwrap();
                             }
                         } else if packet_part.name == "OutOfOrder" {
-                            total_outoforder += 1;
-                            if packet_part.sequence.unwrap() < last_ack {
-                                useless_outoforder += 1;
+                            stats.total_outoforder += 1;
+                            if packet_part.sequence.unwrap() < stats.last_ack {
+                                stats.useless_outoforder += 1;
                             }
                         }
                     }
                 }
                 "Ack" => {
-                    total_acks += 1;
+                    stats.total_acks += 1;
                     let packet: AckPacket =
                         serde_json::from_str(&parsed_packet.as_str().unwrap()).unwrap();
-                    if packet.sequence < last_ack {
-                        useless_acks += 1;
+                    if packet.sequence < stats.last_ack {
+                        stats.useless_acks += 1;
                     }
-                    last_ack = packet.sequence;
+                    stats.last_ack = packet.sequence;
                 }
                 "OutOfOrder" => {
-                    total_outoforder += 1;
+                    stats.total_outoforder += 1;
                     let packet: AckPacket =
                         serde_json::from_str(&parsed_packet.as_str().unwrap()).unwrap();
-                    if packet.sequence < last_ack {
-                        useless_outoforder += 1;
+                    if packet.sequence < stats.last_ack {
+                        stats.useless_outoforder += 1;
                     }
                 }
+                "Data" => {
+                    let packet: DataPacket =
+                        serde_json::from_str(&parsed_packet.as_str().unwrap()).unwrap();
+                    if stats.last_sequence.contains_key(&packet.sequence) {
+                        stats.resended_data += 1;
+                    }
+                    else {
+                        stats.last_sequence.insert(packet.sequence, true);
+                    }
+                    stats.total_data_packets += 1;
+                }
+                "DataFragment" => {
+                    let packet: DataPacket =
+                        serde_json::from_str(&parsed_packet.as_str().unwrap()).unwrap();
+                    if stats.last_sequence.contains_key(&packet.sequence) {
+                        stats.resended_data += 1;
+                    }
+                    else {
+                        stats.last_sequence.insert(packet.sequence, true);
+                    }
+                    stats.total_data_packets += 1;
+                }
                 _ => {
+
 
                 }
             }
         }
-        if total_multi_packets > 0 {
+    }
+
+    fn log_stats(stats: Stats) -> () {
+        if stats.total_multi_packets > 0 {
             // Log the pourcentage of multiple acks per buffer
             println!(
                 "{}% of multiple acks per buffer",
-                (multiple_acks_per_buffer * 100) / total_multi_packets
+                (stats.multiple_acks_per_buffer * 100) / stats.total_multi_packets
             );
         }
-        if total_acks > 0 {
+        if stats.total_acks > 0 {
             // Log the pourcentage of useless acks
-            println!("{}% of useless acks", (useless_acks * 100) / total_acks);
+            println!("{}% of useless acks", (stats.useless_acks * 100) / stats.total_acks);
         }
-        if total_outoforder > 0 {
+        if stats.total_outoforder > 0 {
             // Log the pourcentage of useless outoforder
             println!(
                 "{}% of useless outoforder",
-                (useless_outoforder * 100) / total_outoforder
+                (stats.useless_outoforder * 100) / stats.total_outoforder
             );
         }
+        if stats.total_data_packets > 0 {
+            // Log the pourcentage of resended data from client
+            println!(
+                "{}% of resended data",
+                (stats.resended_data * 100) / stats.total_data_packets
+            );
+        }
+    }
+    pub fn analyze_soe_packets(parsed_packets: HashMap<String,Vec<Value>>) {
+        
+        let server_packets = parsed_packets.get("server").unwrap();
+
+         // REECRIS TT CE BORDEL DANS UNE FONCTION STOCK TT LES VAR DANS UNE STRUCT COMME SA TU PEU COPIER COLLER POUR LE CLIENT C BENEF
+        let mut server_stats = Stats {
+            multiple_acks_per_buffer: 0,
+            total_multi_packets: 0,
+            total_acks: 0,
+            useless_acks: 0,
+            useless_outoforder: 0,
+            total_outoforder: 0,
+            last_ack: 0,
+            last_sequence: HashMap::new(),
+            resended_data: 0,
+            total_data_packets: 0,
+        };
+         analyse_packets(server_packets, &mut server_stats);
+
+        println!("server packets stats");
+
+        log_stats(server_stats);
+
+
+        let client_packets = parsed_packets.get("client").unwrap();
+
+        let mut client_stats = Stats {
+            multiple_acks_per_buffer: 0,
+            total_multi_packets: 0,
+            total_acks: 0,
+            useless_acks: 0,
+            useless_outoforder: 0,
+            total_outoforder: 0,
+            last_ack: 0,
+            last_sequence: HashMap::new(),
+            resended_data: 0,
+            total_data_packets: 0,
+        };
+        analyse_packets(client_packets, &mut client_stats);
+
+        println!("client packets stats");
+
+        log_stats(client_stats);
+        
+        
     }
 }
 
