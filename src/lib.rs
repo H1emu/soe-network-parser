@@ -254,7 +254,6 @@ pub mod soe_packet_extraction {
         
         let server_packets = parsed_packets.get("server").unwrap();
 
-         // REECRIS TT CE BORDEL DANS UNE FONCTION STOCK TT LES VAR DANS UNE STRUCT COMME SA TU PEU COPIER COLLER POUR LE CLIENT C BENEF
         let mut server_stats = Stats {
             multiple_acks_per_buffer: 0,
             total_multi_packets: 0,
