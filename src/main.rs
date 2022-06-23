@@ -4,7 +4,7 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
-mod lib;
+mod modules;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -57,7 +57,7 @@ fn main() {
 
     let contents = fs::read_to_string(file_path).expect("Something went wrong reading the file");
 
-    let extracted_packets = lib::pcap_extraction::extract_raw_data_from_pcap(
+    let extracted_packets = modules::pcap_extraction::extract_raw_data_from_pcap(
         contents,
         server_port,
         max_packets,
@@ -65,7 +65,7 @@ fn main() {
     );
     // extract soe packets from extracted packets with extract_soe_packets
     let soe_packets =
-        lib::soe_packet_extraction::extract_soe_packets(extracted_packets, use_crc, crc_seed);
+        modules::soe_packet_extraction::extract_soe_packets(extracted_packets, use_crc, crc_seed);
 
-    lib::soe_packet_extraction::analyze_soe_packets(soe_packets);
+    modules::soe_packet_extraction::analyze_soe_packets(soe_packets);
 }

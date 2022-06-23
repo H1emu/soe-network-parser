@@ -2,6 +2,13 @@
 edition = "2021"
 name = "soe-network-parser"
 version = "0.1.0"
+
+
+[lib]
+name = "soe_network_parser_lib"
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
 [dependencies]
 hex = "0.4.3"
 path-absolutize = "3.0.13"
