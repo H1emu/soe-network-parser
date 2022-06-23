@@ -73,11 +73,17 @@ fn main() {
         server_port,
         max_packets,
         extract_raw_data,
-        analysis_only
+        analysis_only,
     );
     // extract soe packets from extracted packets with extract_soe_packets
-    let soe_packets =
-        modules::soe_packet_extraction::extract_soe_packets(extracted_packets,&output_directory, use_crc, crc_seed,!analysis_only,max_packets);
+    let soe_packets = modules::soe_packet_extraction::extract_soe_packets(
+        extracted_packets,
+        &output_directory,
+        use_crc,
+        crc_seed,
+        !analysis_only,
+        max_packets,
+    );
 
     modules::soe_packet_extraction::analyze_soe_packets(soe_packets);
 }
