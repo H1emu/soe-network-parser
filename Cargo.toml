@@ -1,15 +1,31 @@
 [package]
 edition = "2021"
 name = "soe-network-parser"
-version = "0.1.0"
+version = "1.0.0"
+
+
+[lib]
+name = "soe_network_parser_lib"
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
 
 [dependencies]
-h1emu-core = { version = "0.8.9", default-features = false, features = ["soeprotocol"] }
-serde = "1.0.136"
-serde_derive = "1.0.136"
-serde_json ="1.0.79"
 hex = "0.4.3"
+path-absolutize = "3.0.13"
+serde = "1.0.137"
+serde_derive = "1.0.137"
+serde_json = "1.0.81"
 
+[dependencies.clap]
+features = ["derive"]
+version = "3.2.5"
+
+[dependencies.h1emu-core]
+default-features = false
+features = ["soeprotocol"]
+version = "0.8.14"
+
+[profile]
 [profile.release]
 lto = true
 opt-level = 3
