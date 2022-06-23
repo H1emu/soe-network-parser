@@ -59,10 +59,17 @@ fn main() {
     let crc_seed = args.crc_seed;
     let analysis_only = args.analysis_only;
 
+    let current_dir = modules::utils::get_current_dir();
+
+    let mut output_directory = current_dir.to_owned();
+    output_directory.push_str("/extracted_packets/");
+    println!("Output directory: {}", output_directory);
+
     let contents = fs::read_to_string(file_path).expect("Something went wrong reading the file");
 
     let extracted_packets = modules::pcap_extraction::extract_raw_data_from_pcap(
         contents,
+        &output_directory,
         server_port,
         max_packets,
         extract_raw_data,
@@ -70,7 +77,7 @@ fn main() {
     );
     // extract soe packets from extracted packets with extract_soe_packets
     let soe_packets =
-        modules::soe_packet_extraction::extract_soe_packets(extracted_packets, use_crc, crc_seed,!analysis_only);
+        modules::soe_packet_extraction::extract_soe_packets(extracted_packets,&output_directory, use_crc, crc_seed,!analysis_only,max_packets);
 
     modules::soe_packet_extraction::analyze_soe_packets(soe_packets);
 }

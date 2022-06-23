@@ -11,3 +11,8 @@
         }
         std::fs::create_dir(dir).unwrap();
     }
+
+    pub fn get_current_dir() -> String {
+        let cwd = std::env::current_dir().unwrap();
+        return cwd.to_str().unwrap().to_owned();
+    }

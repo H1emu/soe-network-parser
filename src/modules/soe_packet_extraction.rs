@@ -15,9 +15,11 @@
 
     pub fn extract_soe_packets(
         extracted_packets: Vec<ExtractedPacket>,
+        output_directory: &String,
         use_crc: bool,
         crc_seed: u32,
         write_packets_to_files: bool,
+        max_packets: usize,
     ) -> HashMap<String,Vec<Value>> {
         let mut protocol = Soeprotocol::initialize(use_crc, crc_seed);
         let mut index: u32 = 0;
@@ -40,7 +42,7 @@
             }
             if write_packets_to_files {
                 let mut file_name: String =
-                    "C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/".to_owned();
+                output_directory.to_owned();
                 file_name.push_str(&index.to_string());
                 file_name.push_str("-");
                 file_name.push_str(&extracted_packet.sender);
@@ -49,10 +51,16 @@
                 file_name.push_str(".json");
                 fs::write(file_name, parsed_data).expect("Unable to write to file");
             }
+            if max_packets > 0 && index as usize >= max_packets {
+                break;
+            }
         }
         if write_packets_to_files {
+            let mut file_name: String =
+            output_directory.to_owned();
+            file_name.push_str("0-full.json");
             fs::write(
-                "C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/0-full.json".to_owned(),
+                file_name,
                 serde_json::to_string_pretty(&parsed_packets).unwrap(),
             )
             .expect("Unable to write to file");
