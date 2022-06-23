@@ -176,25 +176,25 @@
             // Log the pourcentage of multiple acks per buffer
             println!(
                 "{}% of multiple acks per buffer",
-                (stats.multiple_acks_per_buffer * 100) / stats.total_multi_packets
+                (stats.multiple_acks_per_buffer * 100) as f32 / stats.total_multi_packets as f32
             );
         }
         if stats.total_acks > 0 {
             // Log the pourcentage of useless acks
-            println!("{}% of useless acks", (stats.useless_acks * 100) / stats.total_acks);
+            println!("{}% of useless acks", (stats.useless_acks * 100) as f32 / stats.total_acks as f32);
         }
         if stats.total_outoforder > 0 {
             // Log the pourcentage of useless outoforder
             println!(
                 "{}% of useless outoforder",
-                (stats.useless_outoforder * 100) / stats.total_outoforder
+                (stats.useless_outoforder * 100) as f32 / stats.total_outoforder as f32
             );
         }
         if stats.total_data_packets > 0 {
             // Log the pourcentage of resended data from client
             println!(
                 "{}% of resended data",
-                (stats.resended_data * 100) / stats.total_data_packets
+                ((stats.resended_data + 1 ) * 100) as f32 / stats.total_data_packets as f32
             );
         }
     }
