@@ -26,6 +26,9 @@ struct Args {
 
     #[clap(short, long, default_value_t = 0)]
     max_packets: usize,
+
+    #[clap(short, long)]
+    analysis_only: bool,
 }
 
 fn get_absolute_file_path(file_path: &str) -> String {
@@ -54,6 +57,7 @@ fn main() {
     let extract_raw_data: bool = args.extract_raw_data;
     let file_path = get_absolute_file_path(&args.file_path);
     let crc_seed = args.crc_seed;
+    let analysis_only = args.analysis_only;
 
     let contents = fs::read_to_string(file_path).expect("Something went wrong reading the file");
 
@@ -62,10 +66,11 @@ fn main() {
         server_port,
         max_packets,
         extract_raw_data,
+        analysis_only
     );
     // extract soe packets from extracted packets with extract_soe_packets
     let soe_packets =
-        modules::soe_packet_extraction::extract_soe_packets(extracted_packets, use_crc, crc_seed);
+        modules::soe_packet_extraction::extract_soe_packets(extracted_packets, use_crc, crc_seed,!analysis_only);
 
     modules::soe_packet_extraction::analyze_soe_packets(soe_packets);
 }

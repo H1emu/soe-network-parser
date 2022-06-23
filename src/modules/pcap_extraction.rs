@@ -13,6 +13,7 @@
         server_port: &str,
         max_packets: usize,
         extract_raw_data: bool,
+        analysis_only: bool,
     ) -> Vec<ExtractedPacket> {
         // use serde to serialize the json
         let packets: Vec<Packet> = serde_json::from_str(&contents).unwrap();
@@ -45,18 +46,20 @@
         // log number of extracted packets
         println!("{} packets extracted", extracted_packets.len());
         // for each extracted packet, write it to a file
-        create_if_doesnt_exist("C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/");
-        if extract_raw_data {
-            let mut index: u32 = 0;
-            for extracted_packet in &extracted_packets {
-                index += 1;
-                let mut file_name: String =
-                    "C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/".to_owned();
-                file_name.push_str(&index.to_string());
-                file_name.push_str("-");
-                file_name.push_str(&extracted_packet.sender);
-                file_name.push_str(".bin");
-                fs::write(file_name, &extracted_packet.data).expect("Unable to write to file");
+        if !analysis_only{
+            create_if_doesnt_exist("C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/");
+            if extract_raw_data {
+                let mut index: u32 = 0;
+                for extracted_packet in &extracted_packets {
+                    index += 1;
+                    let mut file_name: String =
+                        "C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/".to_owned();
+                    file_name.push_str(&index.to_string());
+                    file_name.push_str("-");
+                    file_name.push_str(&extracted_packet.sender);
+                    file_name.push_str(".bin");
+                    fs::write(file_name, &extracted_packet.data).expect("Unable to write to file");
+                }
             }
         }
         return extracted_packets;

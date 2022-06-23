@@ -17,6 +17,7 @@
         extracted_packets: Vec<ExtractedPacket>,
         use_crc: bool,
         crc_seed: u32,
+        write_packets_to_files: bool,
     ) -> HashMap<String,Vec<Value>> {
         let mut protocol = Soeprotocol::initialize(use_crc, crc_seed);
         let mut index: u32 = 0;
@@ -37,21 +38,25 @@
             } else{
                 parsed_client_packets.push(json!(parsed_data));
             }
-            let mut file_name: String =
-                "C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/".to_owned();
-            file_name.push_str(&index.to_string());
-            file_name.push_str("-");
-            file_name.push_str(&extracted_packet.sender);
-            file_name.push_str("-");
-            file_name.push_str(extracted_packet_small.name.as_str());
-            file_name.push_str(".json");
-            fs::write(file_name, parsed_data).expect("Unable to write to file");
+            if write_packets_to_files {
+                let mut file_name: String =
+                    "C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/".to_owned();
+                file_name.push_str(&index.to_string());
+                file_name.push_str("-");
+                file_name.push_str(&extracted_packet.sender);
+                file_name.push_str("-");
+                file_name.push_str(extracted_packet_small.name.as_str());
+                file_name.push_str(".json");
+                fs::write(file_name, parsed_data).expect("Unable to write to file");
+            }
         }
-        fs::write(
-            "C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/0-full.json".to_owned(),
-            serde_json::to_string_pretty(&parsed_packets).unwrap(),
-        )
-        .expect("Unable to write to file");
+        if write_packets_to_files {
+            fs::write(
+                "C:/Users/Quentin/Desktop/soe-network-parser/extracted_packets/0-full.json".to_owned(),
+                serde_json::to_string_pretty(&parsed_packets).unwrap(),
+            )
+            .expect("Unable to write to file");
+        }
         parsed_packets_map.insert("client".to_owned(),  parsed_client_packets);
         parsed_packets_map.insert("server".to_owned(), parsed_server_packets);
         return parsed_packets_map;
