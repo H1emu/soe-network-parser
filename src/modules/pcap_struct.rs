@@ -23,7 +23,6 @@ pub struct Source {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Layers {
-    pub raw: String,
     pub udp: Option<Udp>,
     pub data: Option<Data>,
 }
